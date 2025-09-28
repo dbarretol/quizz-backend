@@ -8,6 +8,7 @@ from google.cloud import firestore
 from google.cloud.exceptions import GoogleCloudError
 
 from app.core.exceptions import FirestoreException, create_http_exception
+from app.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,13 @@ class FirestoreService:
     def __init__(self):
         """Inicializar el cliente de Firestore."""
         try:
-            self.db = firestore.Client()
+            # En Cloud Run, las credenciales se manejan automáticamente
+            # Si hay un proyecto específico, se puede pasar como parámetro
+            if settings.google_cloud_project:
+                self.db = firestore.Client(project=settings.google_cloud_project)
+            else:
+                self.db = firestore.Client()
+            
             self.collection_name = 'questions'
             logger.info("Cliente de Firestore inicializado correctamente")
         except Exception as e:
