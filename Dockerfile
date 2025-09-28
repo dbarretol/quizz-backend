@@ -10,7 +10,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app/ ./app/
 
 # Copiar archivo .env si existe (opcional para variables no sensibles)
-COPY .env* ./
+#COPY .env* ./
 
 # Exponer puerto
 EXPOSE 8080

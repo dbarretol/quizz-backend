@@ -34,7 +34,7 @@ class Question(BaseModel):
     id: int = Field(..., description="ID único de la pregunta")
     question: str = Field(..., description="Texto de la pregunta")
     options: List[str] = Field(..., min_items=2, description="Lista de opciones de respuesta")
-    correct_answer: int = Field(..., ge=0, description="Índice de la respuesta correcta")
+    correct_answer: int = Field(..., ge=0, alias="correctAnswer")  # Cambiado aquí
     subject: Optional[str] = Field(None, description="Materia o tema de la pregunta")
     
     class Config:
@@ -47,12 +47,13 @@ class Question(BaseModel):
                 "subject": "Geografía"
             }
         }
+        allow_population_by_field_name = True  # Permite usar ambos camelCase y snake_case
 
 
 class UserAttempt(BaseModel):
     """Modelo para un intento de respuesta del usuario."""
     score: int = Field(..., ge=0, description="Puntuación obtenida")
-    total_questions: int = Field(..., gt=0, description="Número total de preguntas")
+    total_questions: int = Field(..., gt=0, alias="totalQuestions")  # Cambiado aquí
     answers: List[int] = Field(..., description="Lista de respuestas del usuario (índices)")
     
     class Config:
@@ -63,12 +64,14 @@ class UserAttempt(BaseModel):
                 "answers": [1, 0, 2, 1, 3]
             }
         }
+        allow_population_by_field_name = True  # Permite usar ambos camelCase y snake_case
+
 
 
 class FeedbackRequest(BaseModel):
     """Modelo para solicitud de feedback personalizado."""
     questions: List[Question] = Field(..., min_items=1, description="Lista de preguntas del quiz")
-    user_attempt: UserAttempt = Field(..., description="Intento del usuario")
+    user_attempt: UserAttempt = Field(..., alias="userAttempt")  # Cambiado aquí
     
     class Config:
         schema_extra = {
@@ -88,6 +91,8 @@ class FeedbackRequest(BaseModel):
                 }
             }
         }
+        allow_population_by_field_name = True  # Permite usar ambos camelCase y snake_case
+
 
 
 class FeedbackResponse(BaseModel):
