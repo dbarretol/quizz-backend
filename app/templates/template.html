@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Página de Prueba - Quizz Service</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        body { font-family: sans-serif; line-height: 1.6; padding: 20px; max-width: 800px; margin: auto; }
+        .container { border: 1px solid #ccc; padding: 20px; border-radius: 8px; margin-top: 20px; }
+        .options label { display: block; margin: 5px 0; }
+        .result { margin-top: 15px; font-weight: bold; }
+        #explanation-output { border: 1px solid #eee; background-color: #f9f9f9; padding: 15px; margin-top: 15px; border-radius: 5px; }
+        button { padding: 10px 15px; border: none; background-color: #007bff; color: white; border-radius: 5px; cursor: pointer; margin-right: 10px; }
+        button:disabled { background-color: #ccc; }
+        input[type="text"] { padding: 10px; width: 80px; }
+    </style>
+</head>
+<body>
+
+    <h1>Tester de Preguntas</h1>
+
+    <div>
+        <label for="question-id">ID de la Pregunta:</label>
+        <input type="text" id="question-id" placeholder="Ej: 7">
+        <button id="fetch-btn">Traer Pregunta</button>
+    </div>
+
+    <div id="question-container" class="container" style="display: none;">
+        <p><strong>Materia:</strong> <span id="subject"></span></p>
+        <p><strong>Tema:</strong> <span id="topic"></span></p>
+        <h3 id="question-text"></h3>
+        
+        <div id="options-container" class="options">
+            <!-- Las opciones de radio se insertarán aquí -->
+        </div>
+
+        <button id="submit-btn">ENVIAR</button>
+        <button id="explanation-btn">EXPLICACIÓN</button>
+
+        <div id="result-message" class="result"></div>
+        <div id="explanation-output"></div>
+    </div>
+
+    <script>
+        let currentQuestion = null;
+
+        document.getElementById('fetch-btn').addEventListener('click', async () => {
+            const questionId = document.getElementById('question-id').value;
+            if (!questionId) {
+                alert('Por favor, ingresa un ID de pregunta.');
+                return;
+            }
+
+            // Resetear vista
+            document.getElementById('question-container').style.display = 'none';
+            document.getElementById('result-message').textContent = '';
+            document.getElementById('explanation-output').innerHTML = '';
+
+            try {
+                const response = await fetch(`/question/${questionId}`);
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || 'Error al obtener la pregunta.');
+                }
+                currentQuestion = await response.json();
+                displayQuestion(currentQuestion);
+            } catch (error) {
+                alert(error.message);
+            }
+        });
+
+        function displayQuestion(data) {
+            document.getElementById('subject').textContent = data.subject;
+            document.getElementById('topic').textContent = data.topic;
+            document.getElementById('question-text').textContent = data.question_text;
+
+            const optionsContainer = document.getElementById('options-container');
+            optionsContainer.innerHTML = ''; // Limpiar opciones anteriores
+
+            ['a', 'b', 'c', 'd'].forEach(opt => {
+                const key = `option_${opt}`;
+                if (data[key]) {
+                    const label = document.createElement('label');
+                    const radio = document.createElement('input');
+                    radio.type = 'radio';
+                    radio.name = 'answer';
+                    radio.value = opt.toUpperCase();
+                    label.appendChild(radio);
+                    label.append(` ${opt.toUpperCase()}. ${data[key]}`);
+                    optionsContainer.appendChild(label);
+                }
+            });
+
+            document.getElementById('question-container').style.display = 'block';
+        }
+
+        document.getElementById('submit-btn').addEventListener('click', () => {
+            if (!currentQuestion) return;
+
+            const selectedOption = document.querySelector('input[name="answer"]:checked');
+            const resultMsg = document.getElementById('result-message');
+
+            if (!selectedOption) {
+                resultMsg.textContent = 'Por favor, selecciona una respuesta.';
+                resultMsg.style.color = 'orange';
+                return;
+            }
+
+            if (selectedOption.value === currentQuestion.correct_answer) {
+                resultMsg.textContent = '¡Correcto!';
+                resultMsg.style.color = 'green';
+            } else {
+                resultMsg.textContent = `Incorrecto. La respuesta correcta era la ${currentQuestion.correct_answer}.`;
+                resultMsg.style.color = 'red';
+            }
+        });
+
+
+        document.getElementById('explanation-btn').addEventListener('click', async () => {
+            if (!currentQuestion || !currentQuestion.question_text) {
+                alert('No hay pregunta seleccionada.');
+                return;
+            }
+
+            const explanationBtn = document.getElementById('explanation-btn');
+            const explanationOutput = document.getElementById('explanation-output');
+            
+            // Mostrar estado de carga
+            explanationOutput.innerHTML = '<p style="color: #666; font-style: italic;">Generando explicación...</p>';
+            explanationBtn.disabled = true;
+            explanationBtn.textContent = 'GENERANDO...';
+
+            try {
+                console.log('Enviando solicitud para pregunta:', currentQuestion.question_text);
+                
+                const response = await fetch('/generate-explanation', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        question_text: currentQuestion.question_text.trim() 
+                    })
+                });
+
+                console.log('Respuesta recibida:', response.status, response.statusText);
+
+                if (!response.ok) {
+                    let errorMessage = 'Error al generar la explicación.';
+                    try {
+                        const errorData = await response.json();
+                        errorMessage = errorData.detail || errorMessage;
+                    } catch (parseError) {
+                        console.error('Error al parsear respuesta de error:', parseError);
+                        errorMessage = `Error ${response.status}: ${response.statusText}`;
+                    }
+                    throw new Error(errorMessage);
+                }
+
+                const data = await response.json();
+                console.log('Datos recibidos:', data);
+
+                if (!data || !data.explanation) {
+                    throw new Error('No se recibió explicación válida del servidor.');
+                }
+
+                // Usar 'marked' para renderizar el Markdown a HTML
+                try {
+                    explanationOutput.innerHTML = marked.parse(data.explanation);
+                } catch (markdownError) {
+                    console.error('Error al parsear Markdown:', markdownError);
+                    // Fallback: mostrar texto plano
+                    explanationOutput.innerHTML = `<p>${data.explanation.replace(/\n/g, '<br>')}</p>`;
+                }
+
+            } catch (error) {
+                console.error('Error completo:', error);
+                explanationOutput.innerHTML = `
+                    <div style="color: red; padding: 10px; border: 1px solid #ffcdd2; background-color: #ffebee; border-radius: 4px;">
+                        <strong>Error:</strong> ${error.message}
+                    </div>
+                `;
+            } finally {
+                explanationBtn.disabled = false;
+                explanationBtn.textContent = 'EXPLICACIÓN';
+            }
+        });
+        // Función adicional para probar la conectividad con el backend
+        async function testBackendConnection() {
+            try {
+                const response = await fetch('/test-gemini');
+                const data = await response.json();
+                console.log('Test de conexión:', data);
+                return data.status === 'success';
+            } catch (error) {
+                console.error('Error en test de conexión:', error);
+                return false;
+            }
+        }
+    </script>
+
+</body>
+</html>

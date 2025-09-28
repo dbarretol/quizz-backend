@@ -1,0 +1,20 @@
+# Core FastAPI dependencies
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+pydantic-settings==2.1.0
+
+# Template engine
+jinja2==3.1.2
+
+# Google Cloud services
+google-cloud-firestore==2.13.1
+google-genai==0.3.0
+
+# Environment management
+python-dotenv==1.0.0
+
+# Development and testing (optional)
+pytest==7.4.3
+pytest-asyncio==0.21.1
+httpx==0.25.2
