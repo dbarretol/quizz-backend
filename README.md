@@ -159,7 +159,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app/ ./app/
 COPY gcp-key.json .
-COPY .env .
+#COPY .env .
 
 EXPOSE 8080
 
@@ -168,84 +168,37 @@ CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
 
 ### Build y run
 
+**Asegurar exportar variables de entorno antes de iiciar**
 ```bash
-docker build -t quiz-service .
-docker run -p 8080:8080 quiz-service
+export PROJECT_ID=$(gcloud config get-value project)
+export PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format='value(projectNumber)')
+export REGION=us-central1
+gcloud config set compute/region $REGION
+
+export GEMINI_API_KEY="A.....o"
+export ENVIRONMENT="..."
+```
+
+```bash
+gcloud builds submit --tag gcr.io/$PROJECT_ID/quizz-backend
+```
+
+```bash
+gcloud run deploy quizz-backend \
+  --image gcr.io/$PROJECT_ID/quizz-backend\
+  --platform managed \
+  --region $REGION \
+  --allow-unauthenticated \
+  --set-env-vars GEMINI_API_KEY=${GEMINI_API_KEY} \
+  --service-account=general@app-generativa-demo.iam.gserviceaccount.com
 ```
 
 ## 🔧 Configuración para Google Cloud Run
 
-### cloudbuild.yaml
 
-```yaml
-steps:
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/quiz-service', '.']
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/quiz-service']
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: gcloud
-    args:
-      - 'run'
-      - 'deploy'
-      - 'quiz-service'
-      - '--image=gcr.io/$PROJECT_ID/quiz-service'
-      - '--region=us-central1'
-      - '--platform=managed'
-      - '--allow-unauthenticated'
-```
 
-## 🧪 Testing
 
-```bash
-# Instalar dependencias de testing
-pip install pytest pytest-asyncio httpx
 
-# Ejecutar tests
-pytest
-```
-
-## 📝 Logging
-
-Los logs se configuran automáticamente y incluyen:
-
-- Timestamp
-- Level (INFO, ERROR, etc.)
-- Nombre del logger
-- Mensaje
-
-## 🚨 Manejo de errores
-
-El sistema incluye:
-
-- Excepciones personalizadas por servicio
-- Manejo robusto de errores de Google Cloud
-- Respuestas HTTP estructuradas
-- Logging detallado de errores
-
-## 🔒 Seguridad
-
-- Validación de entrada con Pydantic
-- Configuración CORS personalizable
-- Variables de entorno para credenciales
-- Límites en parámetros de entrada
-
-## 📈 Monitoreo
-
-Para producción, considerar agregar:
-
-- Prometheus metrics
-- Health checks detallados
-- Distributed tracing
-- APM (Application Performance Monitoring)
-
-## 🤝 Contribución
-
-1. Fork del proyecto
-2. Crear rama para feature (`git checkout -b feature/AmazingFeature`)
-3. Commit de cambios (`git commit -m 'Add some AmazingFeature'`)
-4. Push a la rama (`git push origin feature/AmazingFeature`)
-5. Abrir Pull Request
 
 ## 📄 Licencia
 
